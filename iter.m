@@ -2,7 +2,7 @@ clear
 close all
 % Enter model parameters
 
-VERSION='7';
+VERSION='8';
 
 m=2; % 2 actions (work and shirk)
 w=1; 
@@ -345,19 +345,40 @@ end
 
     
 
-save(['saves/' VERSION '/eqm'], 'dd','bb','SW','eqm_list','b_list','d_list','converged');
+save(['saves/' VERSION '/eqm'],'SW','eqm_list','b_list','d_list','converged');
+
+
+return
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%
-load(['saves/' VERSION '/eqm']);
 
-%% Plot grid points
+load(['saves/' VERSION '/eqm.mat']);
+
+%% Create homogenous grid 
+
+bb_grid=.1:.01:.9;
+dd_grid=.7:.002:.98;
+Int = scatteredInterpolant(d_list,b_list,eqm_list,'nearest');
+G=gridmake(dd_grid',bb_grid'); 
+% next three lines overwrite the loaded data
+d_list=G(:,1); 
+b_list=G(:,2);
+eqm_list = Int(G);
+
+%% Plot raw scattered points
 
 au = unique(eqm_list);
 leg_str={};
-e_all=[0 1 2 3 4 6];
+% e_all=[0 1 2 3 4 6];
 for i=1:length(au)
     e=au(i);
-    iiu = (eqm_list==e)&(d_list>=.8);
+    iiu = (eqm_list==e)&(converged==1);
 
     marker='.';
     switch e
@@ -385,41 +406,73 @@ for i=1:length(au)
     if e==0
         scatter(d_list(iiu),b_list(iiu),250,'filled','d');
     else
-        scatter(d_list(iiu),b_list(iiu),100,'filled');
+        scatter(d_list(iiu),b_list(iiu),50,'filled');
     end
     hold on
 %         i=i+1;    
 end
 i=i+1;
 
-if sum(~converged)>0  % mark points where algorithm didn't converge
-    scatter(d_list(~converged),b_list(~converged),200,'*');
-    leg_str{i}='Didnt converge'; i=i+1;
-end
+% if sum(~converged)>0  % mark points where algorithm didn't converge
+%     scatter(d_list(~converged),b_list(~converged),200,'*');
+%     leg_str{i}='Didnt converge'; i=i+1;
+% end
 
-d_list_new=[]; b_list_new=[];
-[d_list_new_, b_list_new_] = makegrid_in_rec([.92 .2], [.065,.11], 40 );
-d_list_new=[d_list_new; d_list_new_]; b_list_new=[b_list_new; b_list_new_]; 
-[d_list_new_, b_list_new_] = makegrid_in_rec([.975 .88], [.01,.07], 10 );
-d_list_new=[d_list_new; d_list_new_]; b_list_new=[b_list_new; b_list_new_]; 
+% d_list_new=[]; b_list_new=[];
+% [d_list_new_, b_list_new_] = makegrid_in_rec([.92 .2], [.065,.11], 40 );
+% d_list_new=[d_list_new; d_list_new_]; b_list_new=[b_list_new; b_list_new_]; 
+% [d_list_new_, b_list_new_] = makegrid_in_rec([.975 .88], [.01,.07], 10 );
+% d_list_new=[d_list_new; d_list_new_]; b_list_new=[b_list_new; b_list_new_]; 
 
 
-scatter(d_list_new,b_list_new,'filled');
-leg_str{i}='New points'; i=i+1;
+% scatter(d_list_new,b_list_new,'filled');
+% leg_str{i}='New points'; i=i+1;
 
 hold off
 legend(leg_str,'Location','northwestoutside');
 xlabel('\delta')
 ylabel b
+xlim([.8 .98]);
+ylim([.1 .9]);
 % print2eps(['saves/' VERSION '/pics/grid.eps' ]);
+
+
+%% interp2 --> scatter
+figure
+
+bb_fine=.1:.01:.9;
+dd_fine=.7:.005:.98;
+eqm_list_exist = double(eqm_list>0);
+
+Int = scatteredInterpolant(d_list,b_list,eqm_list,'nearest');
+G=gridmake(dd_fine',bb_fine'); dd_fine_list=G(:,1); bb_fine_list=G(:,2);
+eqm_fine_list = Int(G); 
+
+
+iiu = (abs(eqm_fine_list)<.01)&(dd_fine_list>=.8);
+scatter(dd_fine_list(iiu),bb_fine_list(iiu),'filled')
+xlim([.8 .98]);
+ylim([.1 .9]);
+
+%%
+
+eqm_gridfit=interp2(d_list,b_list,eqm_list_exist,dd_fine,bb_fine,'nearest');
+eqm_gridfit=round(eqm_gridfit);
+G=gridmake(dd_fine,bb_fine); dd_fine_list=G(:,1); bb_fine_list=G(:,2);
+eqm_fine_list = reshape(eqm_gridfit,[length(dd_fine_list) 1]);
+iiu = (abs(eqm_fine_list)<.01)&(dd_fine_list>=.8);
+scatter(dd_fine_list(iiu),bb_fine_list(iiu))
+xlabel('\delta')
+ylabel b
+print2eps(['saves/' VERSION '/pics/eqm.eps' ]);
 
 
 %% gridfit --> contourf
 figure
 bb_fine=.1:.01:.9;
-dd_fine=.7:.01:.98;
+dd_fine=.7:.005:.98;
 eqm_list_exist = double(eqm_list==0);
-eqm_gridfit=gridfit(d_list,b_list,eqm_list_exist,dd_fine,bb_fine,'smoothness',8);
+eqm_gridfit=gridfit(d_list,b_list,eqm_list_exist,dd_fine,bb_fine,'smoothness',1);
 % surf(dd,bb,eqm_gridfit);
 contourf(dd_fine,bb_fine,eqm_gridfit,1)
 xlabel('\delta')
@@ -427,25 +480,6 @@ ylabel b
 print2eps(['saves/' VERSION '/pics/eqm.eps' ]);
 
 
-% %% Plot social welfare via imagesc
-% figure
-% imagesc(dd,bb,SW);
-% xlabel('\delta')
-% ylabel b
-% % title('Social welfare')
-% colorbar
-% % saveas(gcf,['saves/' VERSION '/pics/SW' ],'pdf');
-% print2eps(['saves/' VERSION '/pics/SW' ]);
-% 
-% figure
-% SWn=SW.*(-repmat(dd,length(bb),1)+1);
-% imagesc(dd,bb,SWn);
-% xlabel('\delta')
-% ylabel b
-% % title('Social welfare (normalized by 1-delta)')
-% colorbar
-% % saveas(gcf,['saves/' VERSION '/pics/SWn' ],'pdf');
-% print2eps(['saves/' VERSION '/pics/SWn' ]);
 
 %% Plot social welfare 
 

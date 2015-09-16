@@ -18,10 +18,8 @@ path(path,'~/MATLAB')
 krenew -t -- matlab -nodisplay -r iter_value_function_and_pi.m 
 
 
-zip -r vx *.mat
 tar -zcvf vx *.mat
 
-cd /Users/gleb/Dropbox/Stanford/RA\ for\ Susan/Emilio/saves/7
-scp gvroman@corn.stanford.edu:~/saves/7/vx.zip .
-unzip vx
+cd /Users/gleb/Dropbox/Stanford/RA\ for\ Susan/Emilio/saves/8
+scp gvroman@corn.stanford.edu:~/saves/8/vx .
 tar -zxvf vx
